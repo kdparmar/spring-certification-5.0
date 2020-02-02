@@ -1,0 +1,2 @@
+-Dependency injection has the concept of an assembler [4] – or what in Java is commonly referred to as a Factory
+	Spring uses the concept of a BeanFactory as its assembler
