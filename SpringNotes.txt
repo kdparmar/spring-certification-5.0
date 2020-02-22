@@ -1,2 +1,152 @@
+https://docs.spring.io/spring/docs/5.0.3.RELEASE/spring-framework-reference/index.html
+
 -Dependency injection has the concept of an assembler [4] – or what in Java is commonly referred to as a Factory
 	Spring uses the concept of a BeanFactory as its assembler
+	
+-The IoC container manages java objects – from instantiation to destruction – through its BeanFactory.
+	Java components that are instantiated by the IoC container are called beans, 
+	and the IoC container manages a bean's scope, lifecycle events, and any AOP feat
+	ures for which it has been configured and coded.
+	
+-The IoC container enforces the dependency injection pattern for your components, 
+	leaving them loosely coupled and allowing you to code to abstractions.
+	
+-Unit testing is the process by which you test each component of your application in isolation.
+	Spring also has unit testing support and it can reduce the size of your test classes if you can use them.
+	Most unit tests are annotated with @RunWith(SpringJUnit4ClassRunner.class) and @ContextConfiguration.
+	
+-The interface org.springframework.context.ApplicationContext represents the Spring IoC container 
+	and is responsible for instantiating, configuring, and assembling the aforementioned beans. 
+
+-In most application scenarios, explicit user code is not required to instantiate one or more instances of a Spring IoC container.
+
+Java based configuration:
+
+-The @Bean annotation is used to indicate that a method instantiates, configures and initializes a new object 
+	to be managed by the Spring IoC container.
+	@Configuration classes allow inter-bean dependencies to be defined by simply calling other @Bean methods in the same class.
+
+-Within the container itself, these bean definitions are represented as BeanDefinition objects
+
+-With byType or constructor autowiring mode, you can wire arrays and typed-collections but not for premitive types
+
+-ApplicationContext implementations also permit the registration of existing objects that are created outside the container, by users. 
+
+-Any classes defined with the @Bean annotation support the regular lifecycle callbacks and can use the @PostConstruct and @PreDestroy annotations from JSR-250
+
+-By default, beans defined using Java config that have a public close or shutdown method are automatically enlisted with a
+ destruction callback. If you have a public close or shutdown method and you do not wish for it to be called when the container shuts down, simply add @Bean(destroyMethod="") to your bean definition to disable the default (inferred) mode.
+ 
+ -The Spring team generally advocates constructor injection as it enables one to implement application components as immutable objects and to ensure that required dependencies are not null.
+ 
+ -If you use predominantly constructor injection, it is possible to create an unresolvable circular dependency scenario.
+	you can configure circular dependencies with setter injection.
+	Unlike the typical case (with no circular dependencies), a circular dependency between bean A and bean B 
+	forces one of the beans to be injected into the other prior to being fully initialized itself (a classic chicken/egg scenario).
+	
+	
+-method injection :
+A solution is to forego some inversion of control. You can make bean A aware of the container by implementing the ApplicationContextAware interface, and by making a getBean("B") call to the container ask for (a typically new) bean B instance every time bean A needs it.
+
+
+-the Spring Framework supports six scopes, four of which are available only if you use a web-aware ApplicationContext.
+
+Life cylce callback interfaces 
+====================================
+-InitializingBean, DisposableBean  (afterPropertiesSet(), destroy())
+-@PostConstruct, @PreDestroy 
+above are lifecycle callback of bean
+
+-BeanPostProcess spring internaly uses for bean lifecycle callback and call appropriate method
+you can implement it for custom features or lifecycle behavior changes 
+in addition to the initializing and destruction call back spring provide Lifecycle interface so that spring managed objects can participate 
+in startup and shutdown process as driven by the container's own lifecycle
+
+-close() or shutDown() ,AutoCloseable or Closeable
+
+-You can configure the Spring container to “look” for named initialization and destroy callback method names on every bean
+
+Combining Lifecycle Mechanisms
+================================
+Multiple lifecycle mechanisms configured for the same bean, with different initialization methods, are called as follows:
+
+Methods annotated with @PostConstruct
+
+afterPropertiesSet() as defined by the InitializingBean callback interface
+
+A custom configured init() method
+
+Destroy methods are called in the same order:
+
+Methods annotated with @PreDestroy
+
+destroy() as defined by the DisposableBean callback interface
+
+A custom configured destroy() method
+
+Startup and Shutdown Callbacks
+===============================
+The Lifecycle interface defines the essential methods for any object that has its own lifecycle requirements (such as starting and stopping some background process):
+
+
+
+-Shutting Down the Spring IoC Container Gracefully in Non-Web Applications
+
+
+1.8. Container Extension Points
+================================
+Spring IoC container can be extended by plugging in implementations of special integration interfaces
+
+#Customizing Beans by Using a BeanPostProcessor
+ The BeanPostProcessor interface defines callback methods that you can implement to provide your own 
+ (or override the container’s default) instantiation logic, dependency resolution logic, and so forth. 
+ 
+To change the actual bean definition (that is, the blueprint that defines the bean), you instead need to use a BeanFactoryPostProcessor,
+
+
+@Bean
+==========
+You may declare @Bean methods as static, allowing for them to be called without creating their containing configuration class as an instance. This makes particular sense when defining post-processor beans, e.g. of type BeanFactoryPostProcessor or BeanPostProcessor, since such beans will get initialized early in the container lifecycle and should avoid triggering other parts of the configuration at that point.
+
+Note that calls to static @Bean methods will never get intercepted by the container, not even within @Configuration classes (see above). This is due to technical limitations: CGLIB subclassing can only override non-static methods. As a consequence, a direct call to another @Bean method will have standard Java semantics, resulting in an independent instance being returned straight from the factory method itself.
+
+The Java language visibility of @Bean methods does not have an immediate impact on the resulting bean definition in Spring’s container. You may freely declare your factory methods as you see fit in non-@Configuration classes and also for static methods anywhere. However, regular @Bean methods in @Configuration classes need to be overridable, i.e. they must not be declared as private or final.
+
+@Bean methods will also be discovered on base classes of a given component or configuration class, as well as on Java 8 default methods declared in interfaces implemented by the component or configuration class. This allows for a lot of flexibility in composing complex configuration arrangements, with even multiple inheritance being possible through Java 8 default methods as of Spring 4.2.
+
+Finally, note that a single class may hold multiple @Bean methods for the same bean, as an arrangement of multiple factory methods to use depending on available dependencies at runtime. This is the same algorithm as for choosing the "greediest" constructor or factory method in other configuration scenarios: The variant with the largest number of satisfiable dependencies will be picked at construction time, analogous to how the container selects between multiple @Autowired constructors.
+
+
+Naming autodetected components
+==================================
+If you do not want to rely on the default bean-naming strategy, you can provide a custom bean-naming strategy. First, implement the BeanNameGenerator interface, and be sure to include a default no-arg constructor. Then, provide the fully-qualified class name when configuring the scanner:
+
+@Configuration
+@ComponentScan(basePackages = "org.example", nameGenerator = MyNameGenerator.class)
+public class AppConfig {
+    ...
+}
+
+As a general rule, consider specifying the name with the annotation whenever other components may be making explicit references to it. On the other hand, the auto-generated names are adequate whenever the container is responsible for wiring.
+you may need to configure a BeanNameGenerator that defaults to the fully qualified class name for the generated bean name. As of Spring Framework 5.2.3, the FullyQualifiedAnnotationBeanNameGenerator
+
+
+==========
+When using certain non-singleton scopes, it may be necessary to generate proxies for the scoped objects. 
+The reasoning is described in Scoped Beans as Dependencies. For this purpose, a scoped-proxy attribute is available on the 
+component-scan element. 
+
+The three possible values are: no, interfaces, and targetClass. For example, 
+the following configuration results in standard JDK dynamic proxies:
+
+
+@Configuration
+@ComponentScan(basePackages = "org.example", scopedProxy = ScopedProxyMode.INTERFACES)
+public class AppConfig {
+    // ...
+}
+
+
+=================
+Constructor injection in @Configuration classes is only supported as of Spring Framework 4.3. 
+Note also that there is no need to specify @Autowired if the target bean defines only one constructor.
